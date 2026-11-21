@@ -299,14 +299,30 @@ func (e *Engine) scan(ctx context.Context, pattern string, fn func([]string) err
 	}
 }
 
-// scanReservations decodes every reservation (index-free fallback).
+// scanReservations decodes every reservation (index-free fallback) and
+// keeps the ones matching keep.
 func (e *Engine) scanReservations(ctx context.Context, keep func(*model.Reservation) bool) ([]model.Reservation, error) {
 	var out []model.Reservation
-	err := e.scan(ctx, "r:*", func(keys []string) error {
+	err := e.scanReservationBatches(ctx, func(batch []model.Reservation) error {
+		for i := range batch {
+			if keep(&batch[i]) {
+				out = append(out, batch[i])
+			}
+		}
+		return nil
+	})
+	return out, err
+}
+
+// scanReservationBatches calls fn with the reservations of every SCAN page,
+// so memory stays bounded by one page.
+func (e *Engine) scanReservationBatches(ctx context.Context, fn func([]model.Reservation) error) error {
+	return e.scan(ctx, "r:*", func(keys []string) error {
 		vals, err := e.c.Do(ctx, e.c.B().Mget().Key(keys...).Build()).AsStrSlice()
 		if err != nil {
 			return err
 		}
+		batch := make([]model.Reservation, 0, len(vals))
 		for _, v := range vals {
 			if v == "" {
 				continue
@@ -315,13 +331,13 @@ func (e *Engine) scanReservations(ctx context.Context, keep func(*model.Reservat
 			if err := json.Unmarshal([]byte(v), &r); err != nil {
 				return err
 			}
-			if keep(&r) {
-				out = append(out, r)
-			}
+			batch = append(batch, r)
+		}
+		if err := fn(batch); err != nil {
+			return err
 		}
 		return ctx.Err()
 	})
-	return out, err
 }
 
 func (e *Engine) eventIDs(ctx context.Context) ([]string, error) {
@@ -375,15 +391,14 @@ func (e *Engine) SetIndexes(ctx context.Context, enabled bool) error {
 	if err := e.multi(ctx, cmds); err != nil {
 		return err
 	}
-	cmds = cmds[:0]
-	_, err = e.scanReservations(ctx, func(r *model.Reservation) bool {
-		cmds = append(cmds, e.resIndexCmds(r)...)
-		return false
+	err = e.scanReservationBatches(ctx, func(batch []model.Reservation) error {
+		cmds := make(valkey.Commands, 0, len(batch)*3)
+		for i := range batch {
+			cmds = append(cmds, e.resIndexCmds(&batch[i])...)
+		}
+		return e.multi(ctx, cmds)
 	})
 	if err != nil {
-		return err
-	}
-	if err := storekit.Chunks(len(cmds), 10000, func(from, to int) error { return e.multi(ctx, cmds[from:to]) }); err != nil {
 		return err
 	}
 	return e.c.Do(ctx, e.c.B().Set().Key("ix:on").Value("1").Build()).Error()
