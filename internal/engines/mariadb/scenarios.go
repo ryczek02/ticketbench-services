@@ -258,7 +258,7 @@ func (e *Engine) Explain(ctx context.Context, p scenario.Params) (storekit.Plan,
 	if err != nil {
 		return out, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	for i := 0; i < pl.main; i++ {
 		if _, err := runStmt(ctx, tx, pl.stmts[i]); err != nil {
 			return out, err

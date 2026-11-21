@@ -441,16 +441,6 @@ func (e *Engine) Stats(ctx context.Context) (storekit.Stats, error) {
 	return st, nil
 }
 
-func parseIDs(ss []string) []int64 {
-	out := make([]int64, 0, len(ss))
-	for _, s := range ss {
-		if v, err := strconv.ParseInt(s, 10, 64); err == nil {
-			out = append(out, v)
-		}
-	}
-	return out
-}
-
 func errf(id string, format string, args ...any) error {
 	return fmt.Errorf("valkey %s: "+format, append([]any{id}, args...)...)
 }

@@ -59,14 +59,14 @@ func (c *collect) Context() context.Context    { return c.ctx }
 func TestRunPropagatesTrace(t *testing.T) {
 	t.Setenv("OTEL_SDK_DISABLED", "true")
 	shutdown, _ := telemetry.Setup(context.Background(), telemetry.Options{Service: "test", Ratio: 1})
-	defer shutdown(context.Background())
+	defer func() { _ = shutdown(context.Background()) }()
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	lis := bufconn.Listen(1 << 20)
 	fake := &fakeStore{}
 	g := grpc.NewServer(telemetry.GRPCServerOptions()...)
 	tbv1.RegisterStoreServiceServer(g, fake)
-	go g.Serve(lis)
+	go func() { _ = g.Serve(lis) }()
 	defer g.Stop()
 	conn, err := grpc.NewClient("passthrough:///buf", append(telemetry.GRPCDialOptions(),
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return lis.Dial() }),

@@ -37,7 +37,7 @@ func Open(ctx context.Context, dsn string, maxConns int) (*Engine, error) {
 		return nil, err
 	}
 	cfg.MaxConns = int32(maxConns)
-	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithTrimSQLInSpanName())
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err

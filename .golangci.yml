@@ -2,5 +2,12 @@ version: "2"
 linters:
   default: standard
   exclusions:
+    presets:
+      - std-error-handling
+      - common-false-positives
+    rules:
+      # Errors from deferred Close/Rollback after the real work are not actionable.
+      - linters: [errcheck]
+        source: '^\s*defer .*\.(Close|Rollback|EndSession)\('
     paths:
       - gen
