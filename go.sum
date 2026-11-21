@@ -110,6 +110,8 @@ github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
 github.com/ryczek02/ticketbench-contracts v0.1.0 h1:pq4Sc+3URodtyLP6beSHBg1aqDmGwy4r4kZRxmZ1X4I=
 github.com/ryczek02/ticketbench-contracts v0.1.0/go.mod h1:G2QqY+HHTDOlGAarQGnpfUN6h5MxPKyaAYOPnapEbJs=
+github.com/ryczek02/ticketbench-contracts v0.2.0 h1:C5eBvd/eaXvU9xQA1dsnf88laObvm+Vg2m6f4iTZDG4=
+github.com/ryczek02/ticketbench-contracts v0.2.0/go.mod h1:G2QqY+HHTDOlGAarQGnpfUN6h5MxPKyaAYOPnapEbJs=
 github.com/shirou/gopsutil/v4 v4.26.6 h1:Mzr/npDtQC/xpeEuQKHZt8Zo9CmPvhTj8nkR8w5TLDs=
 github.com/shirou/gopsutil/v4 v4.26.6/go.mod h1:LZ6ewCSkBqUpvSOf+LsTGnRinC6iaNUNMGBtDkJBaLQ=
 github.com/sirupsen/logrus v1.9.4 h1:TsZE7l11zFCLZnZ+teH4Umoq5BhEIfIzfRDZ1Uzql2w=

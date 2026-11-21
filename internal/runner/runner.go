@@ -116,6 +116,7 @@ func (s *Server) Ping(ctx context.Context, _ *tbv1.PingRequest) (*tbv1.PingRespo
 			}
 			status.Healthy = true
 			status.Engine, status.ServerVersion, status.BuildVersion, status.Strategies = info.Engine, info.ServerVersion, info.BuildVersion, info.Strategies
+			status.Profiles = info.Profiles
 		}()
 	}
 	wg.Wait()
@@ -142,6 +143,7 @@ func (r *stepRun) meta(ctx context.Context) *tbv1.ResultMeta {
 		Indexes: idx,
 		TraceId: telemetry.TraceID(ctx),
 		Labels:  r.req.Labels,
+		Profile: stepProfile(r.step),
 	}
 }
 
@@ -189,6 +191,17 @@ func (s *Server) Run(req *tbv1.RunRequest, stream grpc.ServerStreamingServer[tbv
 	return nil
 }
 
+// stepProfile returns the connection profile of a scenario or contention step.
+func stepProfile(s *tbv1.Step) string {
+	switch k := s.Kind.(type) {
+	case *tbv1.Step_Scenarios:
+		return k.Scenarios.Profile
+	case *tbv1.Step_Contend:
+		return k.Contend.Profile
+	}
+	return ""
+}
+
 func kind(s *tbv1.Step) string {
 	switch s.Kind.(type) {
 	case *tbv1.Step_Reset_:
@@ -220,6 +233,9 @@ func describe(s *tbv1.Step) string {
 		}
 		return "drop indexes"
 	case *tbv1.Step_Scenarios:
+		if k.Scenarios.Profile != "" {
+			return fmt.Sprintf("%d scenarios x %d reps, profile %s", len(k.Scenarios.Scenarios), k.Scenarios.Repetitions, k.Scenarios.Profile)
+		}
 		return fmt.Sprintf("%d scenarios x %d reps", len(k.Scenarios.Scenarios), k.Scenarios.Repetitions)
 	case *tbv1.Step_Contend:
 		return fmt.Sprintf("contention clients=%v strategies=%v", k.Contend.Clients, k.Contend.Strategies)
@@ -302,7 +318,7 @@ func (r *stepRun) scenarios(ctx context.Context, sc *tbv1.ScenarioStep) error {
 			it := sc.IterationBase + int64(rep)
 			ectx, span := r.s.tracer.Start(ctx, "execute "+id, trace.WithAttributes(attribute.Int64("tb.iteration", it)))
 			start := time.Now()
-			res, err := r.store.Client.Execute(ectx, &tbv1.ExecuteRequest{Scenario: id, Iteration: it, Dataset: r.step.Dataset, TimeoutMs: sc.TimeoutMs})
+			res, err := r.store.Client.Execute(ectx, &tbv1.ExecuteRequest{Scenario: id, Iteration: it, Dataset: r.step.Dataset, TimeoutMs: sc.TimeoutMs, Profile: sc.Profile})
 			e2e := time.Since(start)
 			out := &tbv1.ScenarioResult{
 				Meta: r.meta(ectx), Scenario: id, Repetition: rep - sc.Warmup, Warmup: rep < sc.Warmup, E2ENs: e2e.Nanoseconds(),
@@ -344,7 +360,7 @@ func (r *stepRun) contend(ctx context.Context, cs *tbv1.ContendStep) error {
 		for _, clients := range cs.Clients {
 			res, err := r.store.Client.Contend(ctx, &tbv1.ContendRequest{
 				Dataset: r.step.Dataset, Clients: clients, HotTickets: cs.HotTickets, Rounds: cs.Rounds,
-				Strategy: strategy, TraceRatio: cs.TraceRatio,
+				Strategy: strategy, TraceRatio: cs.TraceRatio, Profile: cs.Profile,
 			})
 			if err != nil {
 				return fmt.Errorf("contend %s/%d: %w", strategy, clients, err)

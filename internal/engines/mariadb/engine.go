@@ -34,8 +34,21 @@ type Engine struct {
 	db *sql.DB
 }
 
+// TLSConfigName is the name to use in the DSN (tls=tb) for connections
+// verified against the CA in TB_TLS_CA.
+const TLSConfigName = "tb"
+
 // Open connects to MariaDB. The DSN must use parseTime=true and loc=UTC.
 func Open(ctx context.Context, dsn string, maxConns int) (*Engine, error) {
+	tlsCfg, err := storekit.TLSConfigFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	if tlsCfg != nil {
+		if err := mysql.RegisterTLSConfig(TLSConfigName, tlsCfg); err != nil {
+			return nil, err
+		}
+	}
 	cfg, err := mysql.ParseDSN(dsn)
 	if err != nil {
 		return nil, err

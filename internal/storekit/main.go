@@ -36,9 +36,11 @@ func EnvInt(key string, def int) int {
 	return def
 }
 
-// Opener connects to the database. It is retried until it succeeds or the
-// startup timeout passes, because containers start in any order.
-type Opener func(ctx context.Context) (Engine, error)
+// Opener connects to the database with the settings of a profile ("" is
+// the default admin connection). The default connection is retried until it
+// succeeds or the startup timeout passes, because containers start in any
+// order. Other profiles listed in TB_PROFILES open on first use.
+type Opener func(ctx context.Context, profile string) (Engine, error)
 
 // Main runs a store service: telemetry, database connection, gRPC server
 // with health checks and reflection, graceful shutdown on SIGTERM.
@@ -65,7 +67,7 @@ func run(ctx context.Context, service string, open Opener) error {
 		_ = shutdown(sctx)
 	}()
 
-	eng, err := Connect(ctx, open, time.Duration(EnvInt("TB_STARTUP_TIMEOUT_S", 180))*time.Second)
+	eng, err := Connect(ctx, func(ctx context.Context) (Engine, error) { return open(ctx, "") }, time.Duration(EnvInt("TB_STARTUP_TIMEOUT_S", 180))*time.Second)
 	if err != nil {
 		return err
 	}
@@ -77,7 +79,9 @@ func run(ctx context.Context, service string, open Opener) error {
 		return err
 	}
 	srv := grpc.NewServer(append(telemetry.GRPCServerOptions(), grpc.MaxRecvMsgSize(64<<20), grpc.MaxSendMsgSize(64<<20))...)
-	tbv1.RegisterStoreServiceServer(srv, NewServer(eng))
+	store := NewServer(eng).WithProfiles(ProfileOpener(open), ProfileNames(Env("TB_PROFILES", "")))
+	defer store.CloseProfiles()
+	tbv1.RegisterStoreServiceServer(srv, store)
 	hs := health.NewServer()
 	healthpb.RegisterHealthServer(srv, hs)
 	hs.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
@@ -85,7 +89,7 @@ func run(ctx context.Context, service string, open Opener) error {
 
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(lis) }()
-	slog.Info("store listening", "addr", addr, "engine", eng.Name(), "version", version.String())
+	slog.Info("store listening", "addr", addr, "engine", eng.Name(), "version", version.String(), "profiles", store.profileNames())
 	select {
 	case <-ctx.Done():
 		slog.Info("shutting down")
@@ -98,7 +102,7 @@ func run(ctx context.Context, service string, open Opener) error {
 }
 
 // Connect retries open with backoff.
-func Connect(ctx context.Context, open Opener, timeout time.Duration) (Engine, error) {
+func Connect(ctx context.Context, open func(context.Context) (Engine, error), timeout time.Duration) (Engine, error) {
 	deadline := time.Now().Add(timeout)
 	wait := 500 * time.Millisecond
 	for {

@@ -31,11 +31,13 @@ func TestParseStores(t *testing.T) {
 type fakeStore struct {
 	tbv1.UnimplementedStoreServiceServer
 	traceparents []string
+	profiles     []string
 }
 
 func (f *fakeStore) Execute(ctx context.Context, req *tbv1.ExecuteRequest) (*tbv1.ExecuteResponse, error) {
 	md, _ := metadata.FromIncomingContext(ctx)
 	f.traceparents = append(f.traceparents, md.Get("traceparent")...)
+	f.profiles = append(f.profiles, req.Profile)
 	return &tbv1.ExecuteResponse{ServerNs: 1000, Rows: 1}, nil
 }
 
@@ -82,7 +84,7 @@ func TestRunPropagatesTrace(t *testing.T) {
 	stream := &collect{ctx: ctx}
 	req := &tbv1.RunRequest{RunId: "r1", Steps: []*tbv1.Step{
 		{Id: "s1", Store: "fake", Dataset: &tbv1.DatasetSpec{Tickets: 5000, Seed: 1},
-			Kind: &tbv1.Step_Scenarios{Scenarios: &tbv1.ScenarioStep{Scenarios: []string{"R1"}, Repetitions: 3, Warmup: 1}}},
+			Kind: &tbv1.Step_Scenarios{Scenarios: &tbv1.ScenarioStep{Scenarios: []string{"R1"}, Repetitions: 3, Warmup: 1, Profile: "tls"}}},
 		{Id: "s2", Store: "fake", Kind: &tbv1.Step_Contend{Contend: &tbv1.ContendStep{Clients: []int32{1, 10}, HotTickets: 5, Rounds: 1, Strategies: []string{"all"}}}},
 	}}
 	if err := srv.Run(req, stream); err != nil {
@@ -93,6 +95,9 @@ func TestRunPropagatesTrace(t *testing.T) {
 		switch ev := e.Event.(type) {
 		case *tbv1.RunEvent_Scenario:
 			scen++
+			if ev.Scenario.Meta.Profile != "tls" {
+				t.Errorf("result profile %q, want tls", ev.Scenario.Meta.Profile)
+			}
 			if ev.Scenario.Meta.TraceId != traceID {
 				t.Errorf("result trace id %s, want %s", ev.Scenario.Meta.TraceId, traceID)
 			}
@@ -107,6 +112,11 @@ func TestRunPropagatesTrace(t *testing.T) {
 	}
 	if cont != 4 {
 		t.Errorf("%d contention rows, want 4 (2 strategies x 2 client counts)", cont)
+	}
+	for _, p := range fake.profiles {
+		if p != "tls" {
+			t.Fatalf("store received profile %q, want tls", p)
+		}
 	}
 	if len(fake.traceparents) != 4 {
 		t.Fatalf("store saw %d traceparent headers", len(fake.traceparents))

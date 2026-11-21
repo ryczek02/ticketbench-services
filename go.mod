@@ -7,7 +7,7 @@ require (
 	github.com/exaring/otelpgx v0.13.0
 	github.com/go-sql-driver/mysql v1.10.2
 	github.com/jackc/pgx/v5 v5.13.0
-	github.com/ryczek02/ticketbench-contracts v0.1.0
+	github.com/ryczek02/ticketbench-contracts v0.2.0
 	github.com/testcontainers/testcontainers-go v0.45.0
 	github.com/testcontainers/testcontainers-go/modules/mariadb v0.45.0
 	github.com/testcontainers/testcontainers-go/modules/mongodb v0.45.0

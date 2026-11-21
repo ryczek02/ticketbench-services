@@ -27,6 +27,7 @@ type Server struct {
 	tbv1.UnimplementedStoreServiceServer
 
 	eng    Engine
+	prof   *profiles
 	tracer trace.Tracer
 
 	scenarioHist metric.Float64Histogram
@@ -102,7 +103,7 @@ func (s *Server) Info(ctx context.Context, _ *tbv1.InfoRequest) (*tbv1.InfoRespo
 	if err != nil {
 		return nil, status.Error(codes.Unavailable, err.Error())
 	}
-	return &tbv1.InfoResponse{Engine: s.eng.Name(), ServerVersion: v, BuildVersion: version.String(), Strategies: s.eng.Strategies()}, nil
+	return &tbv1.InfoResponse{Engine: s.eng.Name(), ServerVersion: v, BuildVersion: version.String(), Strategies: s.eng.Strategies(), Profiles: s.profileNames()}, nil
 }
 
 func (s *Server) Reset(ctx context.Context, _ *tbv1.ResetRequest) (*tbv1.ResetResponse, error) {
@@ -190,9 +191,14 @@ func (s *Server) Execute(ctx context.Context, req *tbv1.ExecuteRequest) (*tbv1.E
 	if err != nil {
 		return nil, err
 	}
+	eng, err := s.engine(ctx, req.GetProfile())
+	if err != nil {
+		return nil, err
+	}
 	ctx, span := s.tracer.Start(ctx, "scenario "+string(p.ID), trace.WithAttributes(s.attrs(
 		attribute.String("tb.scenario", string(p.ID)),
 		attribute.Int64("tb.iteration", p.Iteration),
+		attribute.String("tb.profile", req.GetProfile()),
 	)...))
 	defer span.End()
 
@@ -200,7 +206,7 @@ func (s *Server) Execute(ctx context.Context, req *tbv1.ExecuteRequest) (*tbv1.E
 	if def, _ := scenario.Lookup(p.ID); def.Fixture || !p.Fixture.Empty() {
 		pctx, pspan := s.tracer.Start(ctx, "prepare")
 		start := time.Now()
-		err := s.eng.Prepare(pctx, p)
+		err := eng.Prepare(pctx, p)
 		prepare = time.Since(start)
 		pspan.End()
 		if err != nil {
@@ -215,14 +221,14 @@ func (s *Server) Execute(ctx context.Context, req *tbv1.ExecuteRequest) (*tbv1.E
 		defer cancel()
 	}
 	start := time.Now()
-	rows, err := s.eng.Run(rctx, p)
+	rows, err := eng.Run(rctx, p)
 	took := time.Since(start)
 	timedOut := errors.Is(err, context.DeadlineExceeded) || (err != nil && rctx.Err() != nil)
 	if err != nil && !timedOut {
 		return nil, fail(span, err)
 	}
 	span.SetAttributes(attribute.Int64("tb.rows", rows), attribute.Bool("tb.timed_out", timedOut))
-	s.scenarioHist.Record(ctx, float64(took.Microseconds())/1000, metric.WithAttributes(s.attrs(attribute.String("tb.scenario", string(p.ID)))...))
+	s.scenarioHist.Record(ctx, float64(took.Microseconds())/1000, metric.WithAttributes(s.attrs(attribute.String("tb.scenario", string(p.ID)), attribute.String("tb.profile", req.GetProfile()))...))
 	return &tbv1.ExecuteResponse{ServerNs: took.Nanoseconds(), PrepareNs: prepare.Nanoseconds(), Rows: rows, TimedOut: timedOut}, nil
 }
 

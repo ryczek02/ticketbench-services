@@ -37,6 +37,10 @@ func (s *Server) Contend(ctx context.Context, req *tbv1.ContendRequest) (*tbv1.C
 	if err != nil {
 		return nil, err
 	}
+	eng, err := s.engine(ctx, req.GetProfile())
+	if err != nil {
+		return nil, err
+	}
 	clients := int(req.GetClients())
 	hotN := int(req.GetHotTickets())
 	rounds := int(req.GetRounds())
@@ -58,12 +62,13 @@ func (s *Server) Contend(ctx context.Context, req *tbv1.ContendRequest) (*tbv1.C
 		attribute.Int("tb.clients", clients),
 		attribute.Int("tb.hot_tickets", hotN),
 		attribute.String("tb.strategy", strategy),
+		attribute.String("tb.profile", req.GetProfile()),
 	)...))
 	defer span.End()
 
 	resp := &tbv1.ContendResponse{}
 	for round := 1; round <= rounds; round++ {
-		r, err := s.contendRound(ctx, d, strategy, clients, hot, prices, round, req.GetTraceRatio())
+		r, err := s.contendRound(ctx, eng, d, strategy, clients, hot, prices, round, req.GetTraceRatio())
 		if err != nil {
 			return nil, fail(span, err)
 		}
@@ -75,12 +80,12 @@ func (s *Server) Contend(ctx context.Context, req *tbv1.ContendRequest) (*tbv1.C
 	return resp, nil
 }
 
-func (s *Server) contendRound(ctx context.Context, d *datagen.Dataset, strategy string, clients int, hot []int64,
+func (s *Server) contendRound(ctx context.Context, eng Engine, d *datagen.Dataset, strategy string, clients int, hot []int64,
 	prices map[int64]float64, round int, traceRatio float64) (*tbv1.ContendRound, error) {
 
 	rctx, rspan := s.tracer.Start(ctx, "contend.round", trace.WithAttributes(attribute.Int("tb.round", round)))
 	defer rspan.End()
-	if err := s.eng.ResetHot(telemetry.Quiet(rctx), d, hot); err != nil {
+	if err := eng.ResetHot(telemetry.Quiet(rctx), d, hot); err != nil {
 		return nil, err
 	}
 
@@ -117,7 +122,7 @@ func (s *Server) contendRound(ctx context.Context, d *datagen.Dataset, strategy 
 						actx, aspan = s.tracer.Start(rctx, "contend.attempt", trace.WithAttributes(attribute.Int64("tb.ticket", ticket)))
 					}
 					t0 := time.Now()
-					ok, err := s.eng.TryBook(actx, strategy, Booking{
+					ok, err := eng.TryBook(actx, strategy, Booking{
 						TicketID: ticket, EventID: evID, ReservationID: nextID.Add(1),
 						CustomerID: customer, Price: prices[ticket], At: datagen.T0,
 					})
@@ -161,7 +166,7 @@ func (s *Server) contendRound(ctx context.Context, d *datagen.Dataset, strategy 
 		slog.WarnContext(rctx, "contention errors", "count", errs.Load(), "first", firstErr.Error())
 	}
 
-	sold, reservations, err := s.eng.VerifyHot(telemetry.Quiet(rctx), hot)
+	sold, reservations, err := eng.VerifyHot(telemetry.Quiet(rctx), hot)
 	if err != nil {
 		return nil, err
 	}

@@ -28,14 +28,33 @@ type Engine struct {
 	hotEvent int64
 }
 
-// Open connects to Valkey at addr (host:port).
+// Open connects to Valkey. addr is host:port, or a URL such as
+// rediss://user:password@valkey:6380 for TLS and an ACL user.
 func Open(ctx context.Context, addr string, maxConns int) (*Engine, error) {
-	c, err := valkeyotel.NewClient(valkey.ClientOption{
-		InitAddress:      []string{addr},
-		DisableCache:     true,
-		BlockingPoolSize: maxConns,
-		ConnWriteTimeout: 30 * time.Second,
-	})
+	opt := valkey.ClientOption{InitAddress: []string{addr}}
+	if strings.Contains(addr, "://") {
+		var err error
+		if opt, err = valkey.ParseURL(addr); err != nil {
+			return nil, err
+		}
+		if opt.TLSConfig != nil {
+			ca, err := storekit.TLSConfigFromEnv()
+			if err != nil {
+				return nil, err
+			}
+			if ca != nil {
+				ca.ServerName = opt.TLSConfig.ServerName
+				if ca.ServerName == "" {
+					ca.ServerName, _, _ = strings.Cut(opt.InitAddress[0], ":")
+				}
+				opt.TLSConfig = ca
+			}
+		}
+	}
+	opt.DisableCache = true
+	opt.BlockingPoolSize = maxConns
+	opt.ConnWriteTimeout = 30 * time.Second
+	c, err := valkeyotel.NewClient(opt)
 	if err != nil {
 		return nil, err
 	}

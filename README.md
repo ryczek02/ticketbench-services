@@ -38,6 +38,9 @@ gRPC health service of the running process.
 | `TB_MAX_CONNS` | `1100` | stores, pool size for the 1000-client test |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset (no export) | all |
 | `TB_TRACE_RATIO` | `1` | all |
+| `TB_PROFILES` | empty | stores: extra connection profiles, e.g. `role,tls,tls_role` |
+| `TB_<DSN VAR>_<PROFILE>` | none | DSN of a profile, e.g. `TB_POSTGRES_DSN_TLS_ROLE` |
+| `TB_TLS_CA` | empty | CA file trusted by MariaDB and Valkey TLS connections |
 
 ## How a measurement is taken
 
@@ -71,6 +74,22 @@ tickets per event, reservations as JSON strings and sales counters in a
 sorted set. With indexes on, the store also maintains sets and sorted sets
 under `ix:*`. With indexes off, lookups by attribute use `SCAN`. Lua scripts
 make multi-key updates atomic.
+
+## Connection profiles
+
+Loading data, schema changes and indexes always use the default connection
+(admin user, no TLS). Scenarios and the contention test can run through
+another profile, chosen per request (`ExecuteRequest.profile`). The security
+experiment in ticketbench-infra uses these profiles:
+
+| Profile | PostgreSQL | MariaDB | MongoDB | Valkey |
+|---|---|---|---|---|
+| `role` | role `tb_app`, DML grants only | user `tb_app`, DML grants only | user with a find/insert/update/remove role | ACL user `tbapp`, no admin or dangerous commands, app key prefixes only |
+| `tls` | `sslmode=verify-full` | `tls=tb` (CA from `TB_TLS_CA`) | `tls=true&tlsCAFile=...` | `rediss://` on port 6380 |
+| `tls_role` | both | both | both | both |
+
+The time measured includes the encryption between the store and the
+database, because the timer wraps the driver call.
 
 ## Contention test
 
