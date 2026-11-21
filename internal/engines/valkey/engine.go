@@ -179,7 +179,7 @@ func (e *Engine) salesCmds(tickets []model.Ticket, reservations []model.Reservat
 func (e *Engine) resIndexCmds(r *model.Reservation) valkey.Commands {
 	id := itoa(r.ID)
 	cmds := valkey.Commands{
-		e.c.B().Zadd().Key("ix:k:" + itoa(r.CustomerID)).ScoreMember().ScoreMember(float64(ms(r.CreatedAt)), id).Build(),
+		e.c.B().Zadd().Key("ix:k:"+itoa(r.CustomerID)).ScoreMember().ScoreMember(float64(ms(r.CreatedAt)), id).Build(),
 		e.c.B().Zadd().Key("ix:r:utw").ScoreMember().ScoreMember(float64(ms(r.CreatedAt)), id).Build(),
 	}
 	if r.ExpiresAt != nil {
@@ -202,7 +202,7 @@ type eventHead struct {
 func (e *Engine) eventIndexCmds(h eventHead) valkey.Commands {
 	id := itoa(h.id)
 	return valkey.Commands{
-		e.c.B().Zadd().Key("ix:miasto:" + h.city).ScoreMember().ScoreMember(float64(h.startsAtMs), id).Build(),
+		e.c.B().Zadd().Key("ix:miasto:"+h.city).ScoreMember().ScoreMember(float64(h.startsAtMs), id).Build(),
 		e.c.B().Sadd().Key("ix:org:" + itoa(h.organizer)).Member(id).Build(),
 		e.c.B().Sadd().Key("ix:gatunek:" + h.genre).Member(id).Build(),
 		e.c.B().Zadd().Key("ix:w:data").ScoreMember().ScoreMember(float64(h.startsAtMs), id).Build(),

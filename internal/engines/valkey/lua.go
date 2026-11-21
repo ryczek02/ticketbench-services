@@ -44,7 +44,7 @@ local function set_ticket(e, t, st, rz)
 end
 `
 
-// reserve: ARGV = resID, resJSON, ticketStatus, customerID, createdMs, expiresMs|'' , n, (event, ticket)*n
+// reserve: ARGV = resID, resJSON, ticketStatus, customerID, createdMs, expiresMs|” , n, (event, ticket)*n
 var reserveScript = valkey.NewLuaScript(prelude + `
 local n = tonumber(ARGV[7])
 for i = 0, n - 1 do
@@ -75,7 +75,7 @@ redis.call('SET', 'blok:' .. ARGV[2], '1', 'PX', ARGV[4])
 return 1
 `)
 
-// setstatus: ARGV = resID, status, paymentJSON|''
+// setstatus: ARGV = resID, status, paymentJSON|”
 var statusScript = valkey.NewLuaScript(prelude + `
 local raw = redis.call('GET', 'r:' .. ARGV[1])
 if not raw then return 0 end
@@ -163,7 +163,7 @@ redis.call('HSET', KEYS[1], ARGV[1], enc(raw, doc))
 return 1
 `)
 
-// dropevent: ARGV = event, requiredStatus|''. Returns tickets deleted or -1.
+// dropevent: ARGV = event, requiredStatus|”. Returns tickets deleted or -1.
 var dropEventScript = valkey.NewLuaScript(prelude + `
 local e = ARGV[1]
 local ev = redis.call('HMGET', 'w:' .. e, 'status', 'miasto', 'organizator_id', 'gatunek')

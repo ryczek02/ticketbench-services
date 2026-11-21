@@ -7,8 +7,8 @@ import (
 
 	tbv1 "github.com/ryczek02/ticketbench-contracts/gen/ticketbench/v1"
 	"github.com/ryczek02/ticketbench-contracts/pkg/telemetry"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
@@ -54,7 +54,7 @@ type collect struct {
 }
 
 func (c *collect) Send(e *tbv1.RunEvent) error { c.events = append(c.events, e); return nil }
-func (c *collect) Context() context.Context   { return c.ctx }
+func (c *collect) Context() context.Context    { return c.ctx }
 
 func TestRunPropagatesTrace(t *testing.T) {
 	t.Setenv("OTEL_SDK_DISABLED", "true")

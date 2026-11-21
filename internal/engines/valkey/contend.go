@@ -111,7 +111,7 @@ func (e *Engine) TryBook(ctx context.Context, strategy string, b storekit.Bookin
 		tk.Status, tk.ResID = model.TicketReserved, b.ReservationID
 		return true, e.multi(ctx, valkey.Commands{
 			e.c.B().Srem().Key("wf:" + ev).Member(t).Build(),
-			e.c.B().Hset().Key("wb:" + ev).FieldValue().FieldValue(t, js(tk)).Build(),
+			e.c.B().Hset().Key("wb:"+ev).FieldValue().FieldValue(t, js(tk)).Build(),
 			e.c.B().Set().Key("r:" + itoa(r.ID)).Value(js(r)).Build(),
 			e.c.B().Sadd().Key("contend:res").Member(itoa(r.ID)).Build(),
 		})

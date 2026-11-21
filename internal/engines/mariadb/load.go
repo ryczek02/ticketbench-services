@@ -136,7 +136,9 @@ func (e *Engine) Load(ctx context.Context, d *datagen.Dataset, opts storekit.Loa
 			})
 		}},
 		{"wydarzenia", func() (int64, error) { return insertRows(ctx, db, "wydarzenia", eventCols, d.Events, eventRow) }},
-		{"cenniki", func() (int64, error) { return insertRows(ctx, db, "cenniki", priceCols, storekit.AllPrices(d), priceRow) }},
+		{"cenniki", func() (int64, error) {
+			return insertRows(ctx, db, "cenniki", priceCols, storekit.AllPrices(d), priceRow)
+		}},
 		{"kody_rabatowe", func() (int64, error) {
 			return insertRows(ctx, db, "kody_rabatowe", []string{"id", "kod", "procent", "wazny_od", "wazny_do", "limit_uzyc"}, d.Discounts, func(c *model.DiscountCode) []any {
 				return []any{c.ID, c.Code, c.Percent, c.ValidFrom.UTC(), c.ValidUntil.UTC(), c.UsageLimit}
