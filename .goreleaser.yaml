@@ -1,0 +1,112 @@
+version: 2
+project_name: ticketbench-services
+env:
+  - GOWORK=off
+builds:
+  - id: bench-runner
+    main: ./cmd/bench-runner
+    binary: bench-runner
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Version={{.Version}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Commit={{.ShortCommit}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Date={{.Date}}
+  - id: store-postgres
+    main: ./cmd/store-postgres
+    binary: store-postgres
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Version={{.Version}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Commit={{.ShortCommit}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Date={{.Date}}
+  - id: store-mariadb
+    main: ./cmd/store-mariadb
+    binary: store-mariadb
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Version={{.Version}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Commit={{.ShortCommit}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Date={{.Date}}
+  - id: store-mongo
+    main: ./cmd/store-mongo
+    binary: store-mongo
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Version={{.Version}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Commit={{.ShortCommit}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Date={{.Date}}
+  - id: store-valkey
+    main: ./cmd/store-valkey
+    binary: store-valkey
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Version={{.Version}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Commit={{.ShortCommit}}
+      - -X github.com/ryczek02/ticketbench-contracts/pkg/version.Date={{.Date}}
+archives:
+  - id: bench-runner
+    ids: [bench-runner]
+    name_template: "bench-runner_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [README.md, LICENSE]
+  - id: store-postgres
+    ids: [store-postgres]
+    name_template: "store-postgres_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [README.md, LICENSE]
+  - id: store-mariadb
+    ids: [store-mariadb]
+    name_template: "store-mariadb_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [README.md, LICENSE]
+  - id: store-mongo
+    ids: [store-mongo]
+    name_template: "store-mongo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [README.md, LICENSE]
+  - id: store-valkey
+    ids: [store-valkey]
+    name_template: "store-valkey_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [README.md, LICENSE]
+checksum:
+  name_template: checksums.txt
+snapshot:
+  version_template: "{{ .Version }}-edge+{{ .ShortCommit }}"
+changelog:
+  sort: asc

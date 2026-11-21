@@ -111,13 +111,23 @@ checks the following on every engine:
 The runner test checks that a `traceparent` sent by the caller reaches the
 stores.
 
-## CI
+## CI and binaries
 
 GitHub Actions run vet, golangci-lint, unit tests, the conformance suite as a
-matrix over the four engines and the Go benchmarks. They also build binaries
-for linux/amd64, linux/arm64 and darwin/arm64, and multi-arch images pushed
-to `ghcr.io/ryczek02/ticketbench-<service>`. A `v*` tag attaches the binaries
-to a GitHub release.
+matrix over the four engines and the Go benchmarks. GoReleaser then builds
+every service for linux, darwin and windows on amd64 and arm64:
+
+- every push to `main` replaces the `edge` prerelease with fresh archives;
+- a `v*` tag publishes a versioned release.
+
+Archives are named `<service>_<version>_<os>_<arch>.tar.gz` (`.zip` on
+Windows), next to `checksums.txt`. Multi-arch images go to
+`ghcr.io/ryczek02/ticketbench-<service>` with the tags `latest`, `<version>`
+and `sha-<commit>`.
+
+```
+gh release download edge -R ryczek02/ticketbench-services -p 'store-postgres_*_linux_amd64.tar.gz'
+```
 
 ## Authors
 
