@@ -1,5 +1,7 @@
 # ticketbench-services
 
+[![CI](https://github.com/ryczek02/ticketbench-services/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ryczek02/ticketbench-services/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/ryczek02/ticketbench-services?sort=semver)](https://github.com/ryczek02/ticketbench-services/releases) [![Go](https://img.shields.io/github/go-mod/go-version/ryczek02/ticketbench-services)](go.mod) [![License: MIT](https://img.shields.io/github/license/ryczek02/ticketbench-services)](LICENSE)
+
 Server side of ticketbench: one gRPC store service per database and a
 runner that executes benchmark plans. Part of
 [ryczek02/ticketbench](https://github.com/ryczek02/ticketbench).
