@@ -311,8 +311,12 @@ func (s *Server) setIndexes(store string, on bool) {
 }
 
 func (r *stepRun) scenarios(ctx context.Context, sc *tbv1.ScenarioStep) error {
-	reps := max(1, sc.Repetitions)
-	total := sc.Warmup + reps
+	// Repetitions 0 with a warm-up makes a pure warm-up pass (nothing measured).
+	reps := sc.Repetitions
+	if reps < 1 && sc.Warmup < 1 {
+		reps = 1
+	}
+	total := sc.Warmup + max(0, reps)
 	for _, id := range sc.Scenarios {
 		for rep := int32(0); rep < total; rep++ {
 			it := sc.IterationBase + int64(rep)

@@ -85,15 +85,20 @@ func TestRunPropagatesTrace(t *testing.T) {
 	req := &tbv1.RunRequest{RunId: "r1", Steps: []*tbv1.Step{
 		{Id: "s1", Store: "fake", Dataset: &tbv1.DatasetSpec{Tickets: 5000, Seed: 1},
 			Kind: &tbv1.Step_Scenarios{Scenarios: &tbv1.ScenarioStep{Scenarios: []string{"R1"}, Repetitions: 3, Warmup: 1, Profile: "tls"}}},
+		{Id: "w", Store: "fake", Dataset: &tbv1.DatasetSpec{Tickets: 5000, Seed: 1},
+			Kind: &tbv1.Step_Scenarios{Scenarios: &tbv1.ScenarioStep{Scenarios: []string{"R1"}, Repetitions: 0, Warmup: 2, Profile: "tls"}}},
 		{Id: "s2", Store: "fake", Kind: &tbv1.Step_Contend{Contend: &tbv1.ContendStep{Clients: []int32{1, 10}, HotTickets: 5, Rounds: 1, Strategies: []string{"all"}}}},
 	}}
 	if err := srv.Run(req, stream); err != nil {
 		t.Fatal(err)
 	}
-	var scen, cont int
+	var scen, cont, warm int
 	for _, e := range stream.events {
 		switch ev := e.Event.(type) {
 		case *tbv1.RunEvent_Scenario:
+			if ev.Scenario.Warmup {
+				warm++
+			}
 			scen++
 			if ev.Scenario.Meta.Profile != "tls" {
 				t.Errorf("result profile %q, want tls", ev.Scenario.Meta.Profile)
@@ -107,8 +112,8 @@ func TestRunPropagatesTrace(t *testing.T) {
 			t.Fatalf("step error: %s", ev.Error.Message)
 		}
 	}
-	if scen != 4 {
-		t.Errorf("%d scenario rows, want 4 (1 warmup + 3)", scen)
+	if scen != 6 || warm != 3 {
+		t.Errorf("%d scenario rows (%d warm-up), want 6 (1+2 warm-up + 3)", scen, warm)
 	}
 	if cont != 4 {
 		t.Errorf("%d contention rows, want 4 (2 strategies x 2 client counts)", cont)
@@ -118,7 +123,7 @@ func TestRunPropagatesTrace(t *testing.T) {
 			t.Fatalf("store received profile %q, want tls", p)
 		}
 	}
-	if len(fake.traceparents) != 4 {
+	if len(fake.traceparents) != 6 {
 		t.Fatalf("store saw %d traceparent headers", len(fake.traceparents))
 	}
 	for _, tp := range fake.traceparents {
